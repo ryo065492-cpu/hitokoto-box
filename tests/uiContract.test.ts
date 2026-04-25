@@ -68,6 +68,17 @@ describe("quiet UI contract", () => {
     expect(reviewPage).not.toContain("Codex");
   });
 
+  it("keeps voice transcription implementation words out of rendered home copy", () => {
+    const homeCapture = readSource("../components/HomeCapture.tsx");
+    const voiceInputButton = readSource("../components/VoiceInputButton.tsx");
+
+    expect(homeCapture).not.toContain("OpenAI");
+    expect(homeCapture).not.toContain("API");
+    expect(homeCapture).not.toContain("token");
+    expect(voiceInputButton).not.toContain("OpenAI");
+    expect(voiceInputButton).not.toContain("token");
+  });
+
   it("keeps Codex copy actions in the developer surface", () => {
     const developerNotesList = readSource("../components/DeveloperNotesList.tsx");
 

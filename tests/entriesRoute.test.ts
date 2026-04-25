@@ -111,6 +111,17 @@ describe("entries route", () => {
     expect(savedRequest).toBeTruthy();
   });
 
+  it("does not require OPENAI_API_KEY for normal text saving", async () => {
+    stubCloudEnv();
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const fetchMock = stubSupabaseFetch();
+
+    const response = await POST(request({ entry: createEntry("普通に残す") }, "203.0.113.13"));
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
   it("rejects empty text", async () => {
     stubCloudEnv();
     stubSupabaseFetch();

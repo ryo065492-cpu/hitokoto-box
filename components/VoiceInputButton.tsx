@@ -8,135 +8,248 @@ interface VoiceInputButtonProps {
   onVoiceUsed: () => void;
 }
 
-const keyboardMicGuide = "この端末では、キーボードのマイク入力を使ってください。";
+type VoiceState = "idle" | "recording" | "transcribing";
+
+const maxRecordingMs = 30_000;
+const failureGuide = "うまく文字にできませんでした。キーボードのマイクも使えます。";
+const mediaRecorderMimeTypes = [
+  "audio/mp4",
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/ogg;codecs=opus",
+  "audio/ogg"
+];
+
+function chooseAudioMimeType() {
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return mediaRecorderMimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? "";
+}
+
+function extensionForMimeType(mimeType: string) {
+  if (mimeType.includes("mp4")) {
+    return "m4a";
+  }
+
+  if (mimeType.includes("ogg")) {
+    return "ogg";
+  }
+
+  if (mimeType.includes("wav")) {
+    return "wav";
+  }
+
+  if (mimeType.includes("aac")) {
+    return "aac";
+  }
+
+  return "webm";
+}
 
 export default function VoiceInputButton({
   onFallbackRequested,
   onTranscript,
   onVoiceUsed
 }: VoiceInputButtonProps) {
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const [isListening, setIsListening] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timeoutRef = useRef<number | null>(null);
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [message, setMessage] = useState("声でも残せます。");
 
-  useEffect(() => {
-    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+  const clearRecordingTimeout = () => {
+    if (timeoutRef.current === null) {
+      return;
+    }
 
-    if (!Recognition) {
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  };
+
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  };
+
+  const failSoftly = () => {
+    clearRecordingTimeout();
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onerror = null;
+      recorder.onstop = null;
+
+      if (recorder.state === "recording") {
+        try {
+          recorder.stop();
+        } catch {
+          // Some browsers throw if the recorder already failed internally.
+        }
+      }
+    }
+
+    stopStream();
+    chunksRef.current = [];
+    setVoiceState("idle");
+    setMessage(failureGuide);
+    onFallbackRequested();
+  };
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setMessage("キーボードのマイク入力も使えます。");
     }
 
     return () => {
-      const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-
-      if (recognition) {
-        recognition.onresult = null;
-        recognition.onerror = null;
-        recognition.onend = null;
-        recognition.stop();
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
+
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+
+      if (recorder && recorder.state === "recording") {
+        recorder.onstop = null;
+        recorder.ondataavailable = null;
+        recorder.onerror = null;
+        recorder.stop();
+      }
+
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      chunksRef.current = [];
     };
   }, []);
 
-  const guideKeyboardMic = () => {
-    onFallbackRequested();
-    setIsListening(false);
-    setMessage(keyboardMicGuide);
-  };
-
-  const startListening = () => {
-    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-
-    if (!Recognition) {
-      guideKeyboardMic();
+  const transcribeAudio = async (audioBlob: Blob, mimeType: string) => {
+    if (audioBlob.size === 0) {
+      failSoftly();
       return;
     }
 
-    const recognition = new Recognition();
-    recognition.lang = "ja-JP";
-    recognition.interimResults = true;
-    recognition.continuous = false;
+    setVoiceState("transcribing");
+    setMessage("文字にしています。");
 
-    let didFail = false;
-    let finalTranscript = "";
-    let interimTranscript = "";
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, `voice.${extensionForMimeType(mimeType)}`);
 
-    recognition.onresult = (event) => {
-      interimTranscript = "";
+      const response = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        text?: string;
+      };
+      const transcript = result.text?.trim() ?? "";
 
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const transcript = event.results[index][0].transcript.trim();
-
-        if (!transcript) {
-          continue;
-        }
-
-        if (event.results[index].isFinal) {
-          finalTranscript = `${finalTranscript} ${transcript}`.trim();
-        } else {
-          interimTranscript = `${interimTranscript} ${transcript}`.trim();
-        }
-      }
-    };
-
-    recognition.onerror = () => {
-      didFail = true;
-      guideKeyboardMic();
-    };
-
-    recognition.onend = () => {
-      if (didFail) {
-        recognitionRef.current = null;
-        setIsListening(false);
+      if (!response.ok || !result.ok || !transcript) {
+        failSoftly();
         return;
       }
 
-      const transcript = `${finalTranscript} ${interimTranscript}`.trim();
+      chunksRef.current = [];
+      setVoiceState("idle");
+      setMessage("入りました。");
+      onTranscript(transcript);
+      onVoiceUsed();
+    } catch {
+      failSoftly();
+    }
+  };
 
-      if (transcript) {
-        onTranscript(transcript);
-        onVoiceUsed();
-        setMessage("入りました。");
-      } else {
-        onFallbackRequested();
-        setMessage("入りませんでした。キーボードのマイク入力も使えます。");
-      }
+  const stopRecording = () => {
+    const recorder = recorderRef.current;
 
-      recognitionRef.current = null;
-      setIsListening(false);
-    };
+    if (!recorder || recorder.state !== "recording") {
+      return;
+    }
 
-    recognitionRef.current = recognition;
+    clearRecordingTimeout();
+    recorder.stop();
+  };
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      failSoftly();
+      return;
+    }
+
+    let stream: MediaStream | null = null;
 
     try {
-      recognition.start();
-      setIsListening(true);
-      setMessage("聞いています。");
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = chooseAudioMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      chunksRef.current = [];
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        failSoftly();
+      };
+
+      recorder.onstop = () => {
+        clearRecordingTimeout();
+        stopStream();
+        recorderRef.current = null;
+
+        const blobType = recorder.mimeType || mimeType || chunksRef.current[0]?.type || "audio/webm";
+        const audioBlob = new Blob(chunksRef.current, { type: blobType });
+        chunksRef.current = [];
+        void transcribeAudio(audioBlob, blobType);
+      };
+
+      recorder.start();
+      setVoiceState("recording");
+      setMessage("録音中。もう一度押すと止まります。");
+      timeoutRef.current = window.setTimeout(stopRecording, maxRecordingMs);
     } catch {
-      recognitionRef.current = null;
-      guideKeyboardMic();
+      stream?.getTracks().forEach((track) => track.stop());
+      failSoftly();
     }
   };
 
   const handleClick = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
+    if (voiceState === "recording") {
+      stopRecording();
       return;
     }
 
-    startListening();
+    if (voiceState === "transcribing") {
+      return;
+    }
+
+    void startRecording();
   };
+
+  const buttonLabel =
+    voiceState === "recording" ? "録音中" : voiceState === "transcribing" ? "文字にしています" : "声で入れる";
 
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={handleClick}
-        aria-pressed={isListening}
-        className="rounded-full border border-clay/20 bg-white/80 px-4 py-2 text-sm text-ink transition hover:border-clay/40"
+        aria-pressed={voiceState === "recording"}
+        disabled={voiceState === "transcribing"}
+        className="rounded-full border border-clay/20 bg-white/80 px-4 py-2 text-sm text-ink transition hover:border-clay/40 disabled:cursor-wait disabled:opacity-70"
       >
-        {isListening ? "聞いています" : "声で入れる"}
+        {buttonLabel}
       </button>
       <p className="text-xs leading-5 text-ink/55">{message}</p>
     </div>
