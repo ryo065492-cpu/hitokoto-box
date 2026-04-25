@@ -1,0 +1,14 @@
+.next
+node_modules
+coverage
+*.log
+*.local
+dist
+tools
+.npm-check
+dev.log
+dev.err
+.env
+.env.local
+.env*.local
+.vercel
