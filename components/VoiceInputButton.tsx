@@ -3,41 +3,53 @@
 import { useEffect, useRef, useState } from "react";
 
 interface VoiceInputButtonProps {
+  onFallbackRequested: () => void;
   onTranscript: (transcript: string) => void;
   onVoiceUsed: () => void;
 }
 
+const keyboardMicGuide = "この端末では、キーボードのマイク入力を使ってください。";
+
 export default function VoiceInputButton({
+  onFallbackRequested,
   onTranscript,
   onVoiceUsed
 }: VoiceInputButtonProps) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [message, setMessage] = useState("対応ブラウザでは声で入れられます。");
+  const [message, setMessage] = useState("声でも残せます。");
 
   useEffect(() => {
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    setIsSupported(Boolean(Recognition));
+
+    if (!Recognition) {
+      setMessage("キーボードのマイク入力も使えます。");
+    }
 
     return () => {
-      recognitionRef.current?.stop();
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+
+      if (recognition) {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.stop();
+      }
     };
   }, []);
 
-  const toggleListening = () => {
-    if (!isSupported) {
-      return;
-    }
+  const guideKeyboardMic = () => {
+    onFallbackRequested();
+    setIsListening(false);
+    setMessage(keyboardMicGuide);
+  };
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
+  const startListening = () => {
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!Recognition) {
+      guideKeyboardMic();
       return;
     }
 
@@ -46,6 +58,7 @@ export default function VoiceInputButton({
     recognition.interimResults = true;
     recognition.continuous = false;
 
+    let didFail = false;
     let finalTranscript = "";
     let interimTranscript = "";
 
@@ -68,45 +81,64 @@ export default function VoiceInputButton({
     };
 
     recognition.onerror = () => {
-      setMessage("うまく聞き取れなかったので、そのまま入力で大丈夫です。");
-      setIsListening(false);
+      didFail = true;
+      guideKeyboardMic();
     };
 
     recognition.onend = () => {
+      if (didFail) {
+        recognitionRef.current = null;
+        setIsListening(false);
+        return;
+      }
+
       const transcript = `${finalTranscript} ${interimTranscript}`.trim();
 
       if (transcript) {
         onTranscript(transcript);
         onVoiceUsed();
-        setMessage("声の内容を入力欄に入れました。");
+        setMessage("入りました。");
       } else {
-        setMessage("聞き取りを終えました。そのまま文字で続けても大丈夫です。");
+        onFallbackRequested();
+        setMessage("入りませんでした。キーボードのマイク入力も使えます。");
       }
 
+      recognitionRef.current = null;
       setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-    setMessage("聞き取り中です。終わるまで少し待ってください。");
+
+    try {
+      recognition.start();
+      setIsListening(true);
+      setMessage("聞いています。");
+    } catch {
+      recognitionRef.current = null;
+      guideKeyboardMic();
+    }
+  };
+
+  const handleClick = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    startListening();
   };
 
   return (
     <div className="space-y-2">
       <button
         type="button"
-        onClick={toggleListening}
-        disabled={!isSupported}
-        className="rounded-full border border-clay/20 bg-white/80 px-4 py-2 text-sm text-ink transition hover:border-clay/40 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={handleClick}
+        aria-pressed={isListening}
+        className="rounded-full border border-clay/20 bg-white/80 px-4 py-2 text-sm text-ink transition hover:border-clay/40"
       >
-        {isSupported ? (isListening ? "聞き取りを止める" : "声で入れる") : "声入力は非対応"}
+        {isListening ? "聞いています" : "声で入れる"}
       </button>
-      <p className="text-xs leading-5 text-ink/55">
-        {isSupported
-          ? message
-          : "このブラウザでは声入力が使えないので、そのまま文字で大丈夫です。"}
-      </p>
+      <p className="text-xs leading-5 text-ink/55">{message}</p>
     </div>
   );
 }

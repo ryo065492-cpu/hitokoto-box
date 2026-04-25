@@ -14,6 +14,7 @@ export default function HomeCapture() {
     "idle" | "saving" | "success" | "media-warning" | "error"
   >("idle");
   const voiceUsedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (saveState !== "success" && saveState !== "media-warning") {
@@ -73,17 +74,24 @@ export default function HomeCapture() {
           <label className="block">
             <span className="sr-only">ひとこと入力</span>
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={(event) => setText(event.target.value)}
               rows={8}
               className="min-h-[250px] w-full resize-none rounded-[2rem] border border-mist bg-paper/70 px-5 py-5 text-base leading-8 outline-none transition focus:border-clay/40 focus:bg-white"
               placeholder={`また冷蔵庫見ながら買い物リスト作るの面倒だった\nこの画面、毎回見るのが少し邪魔\n会議後のメール、何を書けばいいか迷った`}
             />
+            <p className="mt-2 text-xs leading-5 text-ink/50">
+              iPhoneのキーボードのマイクでも入力できます。
+            </p>
           </label>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start">
             <PhotoPicker files={files} onFilesChange={setFiles} disabled={saveState === "saving"} />
             <VoiceInputButton
+              onFallbackRequested={() => {
+                textareaRef.current?.focus();
+              }}
               onTranscript={(transcript) => {
                 setText((current) => (current ? `${current}\n${transcript}` : transcript));
               }}
