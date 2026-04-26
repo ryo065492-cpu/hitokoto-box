@@ -26,6 +26,8 @@ describe("quiet UI contract", () => {
   it("keeps member selection and backend words out of the home capture UI", () => {
     const homeCapture = readSource("../components/HomeCapture.tsx");
 
+    expect(homeCapture).not.toContain("VoiceInputButton");
+    expect(homeCapture).not.toContain("声で入れる");
     expect(homeCapture).not.toContain("MemberSwitcher");
     expect(homeCapture).not.toContain("setDefaultMember");
     expect(homeCapture).not.toContain("memberId");
@@ -70,13 +72,23 @@ describe("quiet UI contract", () => {
 
   it("keeps voice transcription implementation words out of rendered home copy", () => {
     const homeCapture = readSource("../components/HomeCapture.tsx");
-    const voiceInputButton = readSource("../components/VoiceInputButton.tsx");
 
     expect(homeCapture).not.toContain("OpenAI");
     expect(homeCapture).not.toContain("API");
     expect(homeCapture).not.toContain("token");
-    expect(voiceInputButton).not.toContain("OpenAI");
-    expect(voiceInputButton).not.toContain("token");
+    expect(homeCapture).not.toContain("/api/transcribe");
+    expect(homeCapture).not.toContain("MediaRecorder");
+  });
+
+  it("protects entries with the admin passcode gate and uses Japanese copy", () => {
+    const entriesPage = readSource("../app/entries/page.tsx");
+
+    expect(entriesPage).toContain('scope="admin"');
+    expect(entriesPage).toContain("保存されたひとこと");
+    expect(entriesPage).toContain("ここで最近の入力を確認できます。");
+    expect(entriesPage).toContain("通常入力");
+    expect(entriesPage).toContain("ショートカット");
+    expect(entriesPage).toContain("共有シート");
   });
 
   it("keeps Codex copy actions in the developer surface", () => {
@@ -89,6 +101,7 @@ describe("quiet UI contract", () => {
   it("protects viewing and management surfaces with the admin passcode gate", () => {
     expect(readSource("../app/review/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/weekly/page.tsx")).toContain('scope="admin"');
+    expect(readSource("../app/entries/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/developer/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/settings/page.tsx")).toContain('scope="admin"');
   });

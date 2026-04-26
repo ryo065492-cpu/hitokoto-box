@@ -109,8 +109,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const limitValue = request.nextUrl.searchParams.get("limit");
-  const limit = limitValue ? Number(limitValue) : undefined;
-  const entries = await repository.listEntries(Number.isFinite(limit) ? { limit } : undefined);
+  const parsedLimit = limitValue ? Number(limitValue) : 50;
+  const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 50;
+  const entries = await repository.listEntries({ limit });
   return NextResponse.json({ entries });
 }
 

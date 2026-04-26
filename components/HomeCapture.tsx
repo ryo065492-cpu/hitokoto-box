@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { captureEntry } from "@/lib/services/appService";
 import PhotoPicker from "@/components/PhotoPicker";
 import SaveFeedback from "@/components/SaveFeedback";
-import VoiceInputButton from "@/components/VoiceInputButton";
 
 export default function HomeCapture() {
   const [text, setText] = useState("");
@@ -13,7 +12,6 @@ export default function HomeCapture() {
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "success" | "media-warning" | "error"
   >("idle");
-  const voiceUsedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -53,11 +51,10 @@ export default function HomeCapture() {
               const result = await captureEntry({
                 text,
                 files,
-                usedVoiceInput: voiceUsedRef.current
+                usedVoiceInput: false
               });
               setText("");
               setFiles([]);
-              voiceUsedRef.current = false;
               setSaveState(
                 result.mediaStatus === "failed" || result.mediaStatus === "partial"
                   ? "media-warning"
@@ -78,27 +75,21 @@ export default function HomeCapture() {
               value={text}
               onChange={(event) => setText(event.target.value)}
               rows={8}
+              lang="ja-JP"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="text"
               className="min-h-[250px] w-full resize-none rounded-[2rem] border border-mist bg-paper/70 px-5 py-5 text-base leading-8 outline-none transition focus:border-clay/40 focus:bg-white"
               placeholder={`また冷蔵庫見ながら買い物リスト作るの面倒だった\nこの画面、毎回見るのが少し邪魔\n会議後のメール、何を書けばいいか迷った`}
             />
             <p className="mt-2 text-xs leading-5 text-ink/50">
-              iPhoneのキーボードのマイクでも入力できます。
+              声で残したい時は、入力欄をタップしてキーボードのマイクを使えます。
             </p>
           </label>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start">
             <PhotoPicker files={files} onFilesChange={setFiles} disabled={saveState === "saving"} />
-            <VoiceInputButton
-              onFallbackRequested={() => {
-                textareaRef.current?.focus();
-              }}
-              onTranscript={(transcript) => {
-                setText((current) => (current ? `${current}\n${transcript}` : transcript));
-              }}
-              onVoiceUsed={() => {
-                voiceUsedRef.current = true;
-              }}
-            />
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -31,7 +31,7 @@ function ReviewContent() {
           </Link>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">あとで見る</h1>
           <p className="mt-2 text-sm leading-7 text-ink/70">
-            普段は見なくて大丈夫です。少しだけ整えて振り返れます。
+            普段は見なくて大丈夫です。少しだけ整理して振り返れます。
           </p>
         </div>
 
@@ -74,7 +74,10 @@ function ReviewContent() {
         <summary className="cursor-pointer list-none transition hover:text-ink">
           データ管理
         </summary>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/entries" className="underline decoration-clay/30 underline-offset-4">
+            保存されたひとことを見る
+          </Link>
           <Link href="/settings" className="underline decoration-clay/30 underline-offset-4">
             書き出しや復元を見る
           </Link>

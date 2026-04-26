@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
+import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { APP_SCHEMA_VERSION, DEFAULT_SETTINGS, type Entry } from "../domain/types";
-import { GET, POST } from "../app/api/entries/route";
+import { DELETE, GET, POST } from "../app/api/entries/route";
 
 const uuid = "11111111-1111-4111-8111-111111111111";
 const now = "2026-04-25T00:00:00.000Z";
@@ -25,6 +26,19 @@ function request(body: unknown, ip = "203.0.113.10"): NextRequest {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
     body: JSON.stringify(body)
+  });
+}
+
+function adminCookie(passcode: string): string {
+  const value = createHmac("sha256", passcode).update("hitokoto-bako:admin").digest("base64url");
+  return `hitokoto_admin_session=${value}`;
+}
+
+function adminRequest(url: string): NextRequest {
+  return new NextRequest(url, {
+    headers: {
+      cookie: adminCookie("admin-secret")
+    }
   });
 }
 
@@ -148,5 +162,46 @@ describe("entries route", () => {
     const response = await GET(new NextRequest("http://localhost/api/entries"));
 
     expect(response.status).toBe(401);
+  });
+
+  it("returns latest entries with an admin session", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_PASSCODE", "admin-secret");
+    stubCloudEnv();
+    const fetchMock = stubSupabaseFetch();
+
+    const response = await GET(adminRequest("http://localhost/api/entries"));
+    const body = (await response.json()) as { entries: Entry[] };
+    const listRequest = fetchMock.mock.calls.find(([url]) => String(url).includes("/entries?select="));
+
+    expect(response.status).toBe(200);
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0]?.source).toBe("text");
+    expect(String(listRequest?.[0])).toContain("limit=50");
+  });
+
+  it("rejects deleting entries without an admin session", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_PASSCODE", "admin-secret");
+    stubCloudEnv();
+
+    const response = await DELETE(new NextRequest(`http://localhost/api/entries?id=${uuid}`));
+
+    expect(response.status).toBe(401);
+  });
+
+  it("deletes an entry with an admin session", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_PASSCODE", "admin-secret");
+    stubCloudEnv();
+    const fetchMock = stubSupabaseFetch();
+
+    const response = await DELETE(adminRequest(`http://localhost/api/entries?id=${uuid}`));
+    const deleteRequest = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).includes("/entries?id=eq.") && init?.method === "DELETE"
+    );
+
+    expect(response.status).toBe(200);
+    expect(deleteRequest).toBeTruthy();
   });
 });
