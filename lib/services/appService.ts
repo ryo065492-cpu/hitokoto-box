@@ -9,6 +9,7 @@ import {
   type WeeklyInsight
 } from "@/domain/types";
 import { RuleBasedAnalyzer } from "@/lib/analyzer/ruleBasedAnalyzer";
+import { buildArsenalView, type ArsenalView } from "@/lib/arsenal/ammo";
 import { getWeekRange } from "@/lib/dates/week";
 import { buildDeveloperPack, type DeveloperPack } from "@/lib/developer/developerPack";
 import { compressImage } from "@/lib/media/imageCompression";
@@ -291,6 +292,11 @@ export async function getDeveloperNotes(): Promise<DeveloperNote[]> {
 export async function getDeveloperPack(): Promise<DeveloperPack> {
   const entries = await activeRepository.listEntries({ limit: 50 });
   return buildDeveloperPack(entries, "v0.9");
+}
+
+export async function getArsenalView(): Promise<ArsenalView> {
+  const entries = await activeRepository.listEntries({ limit: 50 });
+  return buildArsenalView(entries);
 }
 
 export async function clearAllData(): Promise<void> {

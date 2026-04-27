@@ -40,6 +40,8 @@ describe("quiet UI contract", () => {
     expect(homeCapture).not.toContain("メンバー");
     expect(homeCapture).not.toContain("Codex");
     expect(homeCapture).not.toContain("Deep Research");
+    expect(homeCapture).not.toContain("弾薬庫");
+    expect(homeCapture).not.toContain("/arsenal");
     expect(homeCapture).not.toContain("改善材料パック");
   });
 
@@ -110,8 +112,25 @@ describe("quiet UI contract", () => {
     expect(readSource("../app/review/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/weekly/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/entries/page.tsx")).toContain('scope="admin"');
+    expect(readSource("../app/arsenal/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/developer/page.tsx")).toContain('scope="admin"');
     expect(readSource("../app/settings/page.tsx")).toContain('scope="admin"');
+  });
+
+  it("keeps the arsenal as an admin-only operation room", () => {
+    const arsenalPage = readSource("../app/arsenal/page.tsx");
+    const arsenalBoard = readSource("../components/ArsenalBoard.tsx");
+
+    expect(arsenalPage).toContain("ArsenalBoard");
+    expect(arsenalBoard).toContain("弾薬庫");
+    expect(arsenalBoard).toContain("今日使える弾");
+    expect(arsenalBoard).toContain("ChatGPTに相談する文面をコピー");
+    expect(arsenalBoard).toContain("Codexに投げる指示をコピー");
+    expect(arsenalBoard).toContain("家族に確認する一言をコピー");
+    expect(arsenalBoard).toContain("/entries");
+    expect(arsenalBoard).toContain("/review");
+    expect(arsenalBoard).toContain("/developer");
+    expect(arsenalBoard).toContain("/settings");
   });
 
   it("keeps passcode copy gentle and avoids login wording", () => {

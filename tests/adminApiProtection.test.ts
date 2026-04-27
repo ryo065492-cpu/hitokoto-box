@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GET as getArsenal } from "../app/api/arsenal/route";
 import { GET as getDeveloperPack } from "../app/api/developer-pack/route";
 import { GET as getDeveloperNotes } from "../app/api/developer-notes/route";
 import { GET as exportData } from "../app/api/export/route";
@@ -29,6 +30,15 @@ describe("admin API protection", () => {
     vi.stubEnv("ADMIN_PASSCODE", "admin-secret");
 
     const response = await getDeveloperPack(request("http://localhost/api/developer-pack"));
+
+    expect(response.status).toBe(401);
+  });
+
+  it("does not expose arsenal data without an admin session", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ADMIN_PASSCODE", "admin-secret");
+
+    const response = await getArsenal(request("http://localhost/api/arsenal"));
 
     expect(response.status).toBe(401);
   });
