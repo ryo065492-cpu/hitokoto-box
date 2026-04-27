@@ -11,11 +11,13 @@ describe("release script", () => {
     const source = readFileSync(scriptPath, "utf8");
 
     expect(source).toContain(".env.local");
-    expect(source).toContain("npm run lint");
-    expect(source).toContain("npm run build");
-    expect(source).toContain("npm run test");
-    expect(source).toContain("git add .");
-    expect(source).toContain("git commit");
-    expect(source).toContain("git push");
+    expect(source).toContain("npm.cmd");
+    expect(source).toContain('"run", "lint"');
+    expect(source).toContain('"run", "build"');
+    expect(source).toContain('"run", "test"');
+    expect(source).toContain('-FilePath "git" -Arguments @("add", ".")');
+    expect(source).toContain('-FilePath "git" -Arguments @("commit", "-m", $Message)');
+    expect(source).toContain('-FilePath "git" -Arguments @("push")');
+    expect(source).toContain("PowerShell");
   });
 });

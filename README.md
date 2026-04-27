@@ -1,5 +1,21 @@
 # ひとこと箱
 
+## release.ps1 の実行方法
+
+PowerShell の ExecutionPolicy で止まる場合は、次のように Bypass を付けて実行できます。
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\release.ps1 "v0.10 弾薬庫追加"
+```
+
+通常は次でも動きます。
+
+```powershell
+.\scripts\release.ps1 "v0.10 弾薬庫追加"
+```
+
+`release.ps1` の表示文は PowerShell 5.1 でも壊れにくいように英語中心にしています。commit message には日本語を渡して構いません。
+
 ## v0.10 弾薬庫 / 運用司令室
 
 `/arsenal` は管理者向けの「弾薬庫」です。直近50件のひとことから、次に使えそうな改善の弾を最大5件に絞って表示します。ホーム画面は家族が入れるだけのままで、弾薬庫への大きな導線は出しません。
