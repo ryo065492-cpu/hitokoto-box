@@ -10,6 +10,7 @@ import {
 } from "@/domain/types";
 import { RuleBasedAnalyzer } from "@/lib/analyzer/ruleBasedAnalyzer";
 import { getWeekRange } from "@/lib/dates/week";
+import { buildDeveloperPack, type DeveloperPack } from "@/lib/developer/developerPack";
 import { compressImage } from "@/lib/media/imageCompression";
 import { activeRepository, isCloudStorageMode } from "@/lib/storage/activeRepository";
 import type { Repository } from "@/lib/storage/repository";
@@ -285,6 +286,11 @@ export async function getWeeklySummaryView(): Promise<WeeklySummaryView> {
 
 export async function getDeveloperNotes(): Promise<DeveloperNote[]> {
   return activeRepository.listDeveloperNotes();
+}
+
+export async function getDeveloperPack(): Promise<DeveloperPack> {
+  const entries = await activeRepository.listEntries({ limit: 50 });
+  return buildDeveloperPack(entries, "v0.9");
 }
 
 export async function clearAllData(): Promise<void> {

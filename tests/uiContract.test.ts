@@ -40,6 +40,7 @@ describe("quiet UI contract", () => {
     expect(homeCapture).not.toContain("メンバー");
     expect(homeCapture).not.toContain("Codex");
     expect(homeCapture).not.toContain("Deep Research");
+    expect(homeCapture).not.toContain("改善材料パック");
   });
 
   it("does not show who wrote an entry in recent entries", () => {
@@ -93,9 +94,16 @@ describe("quiet UI contract", () => {
 
   it("keeps Codex copy actions in the developer surface", () => {
     const developerNotesList = readSource("../components/DeveloperNotesList.tsx");
+    const developerPackPanel = readSource("../components/DeveloperPackPanel.tsx");
+    const developerPage = readSource("../app/developer/page.tsx");
 
     expect(developerNotesList).toContain("Codex");
     expect(developerNotesList).toContain("note.codexPrompt");
+    expect(developerPackPanel).toContain("改善材料パック");
+    expect(developerPackPanel).toContain("ChatGPT用まとめをコピー");
+    expect(developerPackPanel).toContain("Codex用改善指示をコピー");
+    expect(developerPackPanel).toContain("家族内βレビューをコピー");
+    expect(developerPage).toContain("DeveloperPackPanel");
   });
 
   it("protects viewing and management surfaces with the admin passcode gate", () => {
