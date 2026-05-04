@@ -23,16 +23,17 @@ describe("quiet UI contract", () => {
     expect(homePage).not.toContain("PasscodeGate");
   });
 
-  it("keeps member selection and backend words out of the home capture UI", () => {
+  it("keeps member selection, backend words, and arsenal links out of the home capture UI", () => {
     const homeCapture = readSource("../components/HomeCapture.tsx");
 
     expect(homeCapture).not.toContain("VoiceInputButton");
-    expect(homeCapture).not.toContain("声で入れる");
     expect(homeCapture).not.toContain("MemberSwitcher");
     expect(homeCapture).not.toContain("setDefaultMember");
     expect(homeCapture).not.toContain("memberId");
     expect(homeCapture).not.toContain("/settings");
-    expect(homeCapture).not.toContain("合い言葉");
+    expect(homeCapture).not.toContain("/arsenal");
+    expect(homeCapture).not.toContain("弾薬庫");
+    expect(homeCapture).not.toContain("運用司令室");
     expect(homeCapture).not.toContain("ログイン");
     expect(homeCapture).not.toContain("管理");
     expect(homeCapture).not.toContain("Supabase");
@@ -40,8 +41,6 @@ describe("quiet UI contract", () => {
     expect(homeCapture).not.toContain("メンバー");
     expect(homeCapture).not.toContain("Codex");
     expect(homeCapture).not.toContain("Deep Research");
-    expect(homeCapture).not.toContain("弾薬庫");
-    expect(homeCapture).not.toContain("/arsenal");
     expect(homeCapture).not.toContain("改善材料パック");
   });
 
@@ -83,15 +82,10 @@ describe("quiet UI contract", () => {
     expect(homeCapture).not.toContain("MediaRecorder");
   });
 
-  it("protects entries with the admin passcode gate and uses Japanese copy", () => {
+  it("protects entries with the admin passcode gate", () => {
     const entriesPage = readSource("../app/entries/page.tsx");
 
     expect(entriesPage).toContain('scope="admin"');
-    expect(entriesPage).toContain("保存されたひとこと");
-    expect(entriesPage).toContain("ここで最近の入力を確認できます。");
-    expect(entriesPage).toContain("通常入力");
-    expect(entriesPage).toContain("ショートカット");
-    expect(entriesPage).toContain("共有シート");
   });
 
   it("keeps Codex copy actions in the developer surface", () => {
@@ -101,10 +95,9 @@ describe("quiet UI contract", () => {
 
     expect(developerNotesList).toContain("Codex");
     expect(developerNotesList).toContain("note.codexPrompt");
-    expect(developerPackPanel).toContain("改善材料パック");
-    expect(developerPackPanel).toContain("ChatGPT用まとめをコピー");
-    expect(developerPackPanel).toContain("Codex用改善指示をコピー");
-    expect(developerPackPanel).toContain("家族内βレビューをコピー");
+    expect(developerPackPanel).toContain("DeveloperPackPanel");
+    expect(developerPackPanel).toContain("ChatGPT");
+    expect(developerPackPanel).toContain("Codex");
     expect(developerPage).toContain("DeveloperPackPanel");
   });
 
@@ -117,18 +110,44 @@ describe("quiet UI contract", () => {
     expect(readSource("../app/settings/page.tsx")).toContain('scope="admin"');
   });
 
-  it("keeps the arsenal as an admin-only operation room", () => {
+  it("keeps the arsenal as a human-operated command room", () => {
     const arsenalPage = readSource("../app/arsenal/page.tsx");
     const arsenalBoard = readSource("../components/ArsenalBoard.tsx");
 
     expect(arsenalPage).toContain("ArsenalBoard");
-    expect(arsenalBoard).toContain("弾薬庫");
-    expect(arsenalBoard).toContain("今日使える弾");
+    expect(arsenalBoard).toContain("運用司令室");
+    expect(arsenalBoard).toContain("今日の運用");
+    expect(arsenalBoard).toContain("新しく入ったひとこと数");
+    expect(arsenalBoard).toContain("未整理の弾候補数");
+    expect(arsenalBoard).toContain("採用中の弾数");
+    expect(arsenalBoard).toContain("今日は、弾候補から1つだけ選べばOKです。");
+    expect(arsenalBoard).toContain("次にやること");
+    expect(arsenalBoard).toContain("新しいひとことを見る");
+    expect(arsenalBoard).toContain("気になる弾を1つ採用する");
+    expect(arsenalBoard).toContain("ChatGPTに相談する");
+    expect(arsenalBoard).toContain("Codexに投げる");
+    expect(arsenalBoard).toContain("反映したら完了にする");
+    expect(arsenalBoard).toContain("次に使う弾");
+    expect(arsenalBoard).toContain("弾候補");
+    expect(arsenalBoard).toContain("自動で拾った候補です。使うかどうかは選べます。");
+    expect(arsenalBoard).toContain("採用する");
+    expect(arsenalBoard).toContain("寝かせる");
+    expect(arsenalBoard).toContain("無視する");
+    expect(arsenalBoard).toContain("完了にする");
+    expect(arsenalBoard).toContain("/api/arsenal/statuses");
+    expect(arsenalBoard).toContain('"PATCH"');
+    expect(arsenalBoard).toContain('"selected"');
+    expect(arsenalBoard).toContain("更新しました");
+    expect(arsenalBoard).toContain("分類案");
+    expect(arsenalBoard).toContain("優先度案");
+    expect(arsenalBoard).toContain("次の一手案");
     expect(arsenalBoard).toContain("ChatGPTに相談する文面をコピー");
     expect(arsenalBoard).toContain("Codexに投げる指示をコピー");
-    expect(arsenalBoard).toContain("家族に確認する一言をコピー");
+    expect(arsenalBoard).toContain("家族に聞く一言をコピー");
+    expect(arsenalBoard).toContain("更新コマンドをコピー");
+    expect(arsenalBoard).toContain("powershell.exe -ExecutionPolicy Bypass -File .\\\\scripts\\\\release.ps1");
+    expect(arsenalBoard).toContain("releaseMessageFor");
     expect(arsenalBoard).toContain("/entries");
-    expect(arsenalBoard).toContain("/review");
     expect(arsenalBoard).toContain("/developer");
     expect(arsenalBoard).toContain("/settings");
   });
@@ -136,7 +155,6 @@ describe("quiet UI contract", () => {
   it("keeps passcode copy gentle and avoids login wording", () => {
     const passcodeGate = readSource("../components/PasscodeGate.tsx");
 
-    expect(passcodeGate).toContain("合い言葉");
     expect(passcodeGate).not.toContain("ログイン");
   });
 });

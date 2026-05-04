@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 create table if not exists entries (
   id uuid primary key,
   text text not null,
@@ -62,6 +64,17 @@ create table if not exists developer_notes (
   created_at timestamptz not null default now()
 );
 
+create table if not exists ammo_item_statuses (
+  id uuid primary key default gen_random_uuid(),
+  ammo_key text not null unique,
+  source_entry_ids jsonb not null default '[]'::jsonb,
+  title text not null,
+  status text not null default 'candidate',
+  note text,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
 -- v0.4 policy:
 -- Browsers do not read or write these tables directly.
 -- Next.js Route Handlers use SUPABASE_SERVICE_ROLE_KEY on the server.
@@ -71,3 +84,4 @@ alter table attachments enable row level security;
 alter table entry_analyses enable row level security;
 alter table weekly_insights enable row level security;
 alter table developer_notes enable row level security;
+alter table ammo_item_statuses enable row level security;

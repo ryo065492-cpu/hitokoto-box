@@ -72,7 +72,7 @@ describe("arsenal route", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns up to five ammo cards with copy prompts", async () => {
+  it("returns up to five ammo candidates with tentative copy prompts", async () => {
     stubCloudEnv();
     const fetchMock = stubSupabaseFetch();
 
@@ -82,8 +82,9 @@ describe("arsenal route", () => {
 
     expect(response.status).toBe(200);
     expect(body.view.cards).toHaveLength(5);
-    expect(body.view.cards[0]?.chatGptPrompt).toContain("これはひとこと箱の改善候補です");
-    expect(body.view.cards[0]?.codexPrompt).toContain("v0.xxとして以下の改善を実装してください");
+    expect(body.view.cards[0]?.status).toBe("candidate");
+    expect(body.view.cards[0]?.chatGptPrompt).toContain("まだ決定事項ではありません");
+    expect(body.view.cards[0]?.codexPrompt).toContain("以下の候補を実装するか検討");
     expect(body.view.cards[0]?.familyQuestion).toContain("これ、もう少し楽にできたら助かる？");
     expect(String(listRequest?.[0])).toContain("limit=50");
   });

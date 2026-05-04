@@ -1,6 +1,6 @@
 import type { Entry } from "@/domain/types";
 
-export type AmmoStatus = "unused" | "next" | "doing" | "parked" | "done";
+export type AmmoStatus = "candidate" | "selected" | "parked" | "ignored" | "done";
 export type AmmoPriority = "高" | "中" | "低";
 
 export type AmmoKind =
@@ -15,14 +15,17 @@ export type AmmoKind =
 
 export interface AmmoItemStatus {
   id: string;
+  ammoKey: string;
   sourceEntryIds: string[];
   title: string;
   status: AmmoStatus;
+  note?: string;
   updatedAt: string;
 }
 
 export interface AmmoCard {
   id: string;
+  ammoKey: string;
   sourceEntryIds: string[];
   title: string;
   kind: AmmoKind;
@@ -110,6 +113,27 @@ function snippet(text: string, length = 44): string {
   return `${normalized.slice(0, length)}...`;
 }
 
+function normalizeKeyPart(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function hashString(value: string): string {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(36);
+}
+
+export function createAmmoKey(kind: AmmoKind, title: string, sourceEntryIds: string[]): string {
+  const stableSourceIds = [...sourceEntryIds].sort().join(",");
+  const rawKey = [kind, normalizeKeyPart(title), stableSourceIds].join("|");
+  return `ammo_${hashString(rawKey)}`;
+}
+
 function classifyEntry(entry: Entry): AmmoKind | undefined {
   const text = entry.text;
 
@@ -172,44 +196,44 @@ function scoreFor(entry: Entry, kind: AmmoKind): number {
 function titleFor(kind: AmmoKind, text: string): string {
   switch (kind) {
     case "Codex改修候補":
-      return `アプリを直す弾: ${snippet(text, 28)}`;
+      return `アプリを直す候補: ${snippet(text, 28)}`;
     case "アプリ改善":
-      return `使いやすさの弾: ${snippet(text, 28)}`;
+      return `使いやすさの候補: ${snippet(text, 28)}`;
     case "家事・買い物":
-      return `家事を軽くする弾: ${snippet(text, 28)}`;
+      return `家事を軽くする候補: ${snippet(text, 28)}`;
     case "書類・予定":
-      return `迷いを減らす弾: ${snippet(text, 28)}`;
+      return `迷いを減らす候補: ${snippet(text, 28)}`;
     case "家族運用":
-      return `家族の回し方を整える弾: ${snippet(text, 28)}`;
+      return `家族の回し方を整える候補: ${snippet(text, 28)}`;
     case "調査したいこと":
-      return `調べものの弾: ${snippet(text, 28)}`;
+      return `調べものの候補: ${snippet(text, 28)}`;
     case "ChatGPT相談候補":
-      return `相談してほどく弾: ${snippet(text, 28)}`;
+      return `相談してほどく候補: ${snippet(text, 28)}`;
     default:
-      return `生活を楽にする弾: ${snippet(text, 28)}`;
+      return `生活を楽にする候補: ${snippet(text, 28)}`;
   }
 }
 
 function reasonFor(kind: AmmoKind, text: string): string {
   if (includesAny(text, REPEAT_KEYWORDS)) {
-    return "繰り返し出ている困りごとなので、小さく直すだけでも効きそうです。";
+    return "繰り返し出ているので、小さく試す候補になりそうです。";
   }
 
   switch (kind) {
     case "Codex改修候補":
     case "アプリ改善":
-      return "入力や確認の負担に関わる声なので、ひとこと箱自体を静かに使いやすくできます。";
+      return "入力や確認の負担に関わる声なので、ひとこと箱自体を静かに使いやすくする候補です。";
     case "家事・買い物":
     case "生活改善":
-      return "日常の小さな面倒を減らせる可能性があります。";
+      return "日常の小さな面倒を減らせるかもしれない候補です。";
     case "書類・予定":
-      return "迷いや確認の手間を減らす仕組みにしやすい内容です。";
+      return "迷いや確認の手間を減らす仕組みにできるかもしれません。";
     case "調査したいこと":
-      return "比較や調査をまとめれば、あとで判断しやすくなります。";
+      return "比較や調査をまとめると、あとで判断しやすくなりそうです。";
     case "家族運用":
-      return "人を責めずに、家族の回し方を少し楽にできそうです。";
+      return "人を責めずに、家族の回し方を少し楽にできるかもしれません。";
     default:
-      return "まだ形は粗いですが、相談材料として使えそうです。";
+      return "まだ仮説ですが、相談材料として拾っておけそうです。";
   }
 }
 
@@ -217,7 +241,7 @@ function nextStepFor(kind: AmmoKind): string {
   switch (kind) {
     case "Codex改修候補":
     case "アプリ改善":
-      return "Codexに渡す前に、ホーム画面をうるさくしない受け入れ条件を1つ決める。";
+      return "採用するなら、ホーム画面をうるさくしない受け入れ条件を1つ決める。";
     case "家事・買い物":
     case "生活改善":
       return "家族に1問だけ確認して、今週1つだけ試す形にする。";
@@ -228,14 +252,14 @@ function nextStepFor(kind: AmmoKind): string {
     case "家族運用":
       return "誰かを担当にせず、仕組みで楽にできる聞き方をする。";
     default:
-      return "まずはChatGPTに整理してもらい、今やるか寝かせるか決める。";
+      return "まずは相談して、今やるか寝かせるか決める。";
   }
 }
 
 function promptHeader(): string {
   return [
     "これはひとこと箱の改善候補です。",
-    "プロダクト思想を守りながら、次にどう扱うべきか整理してください。",
+    "まだ決定事項ではありません。プロダクト思想を守りながら、採用するか、寝かせるか、無視するかを整理してください。",
     "守る思想: 表は入れるだけ / 裏でまとめる / 家族に分類させない / ホーム画面を静かに保つ / 家族の不満リストにしない"
   ].join("\n");
 }
@@ -244,14 +268,14 @@ function buildChatGptPrompt(card: Omit<AmmoCard, "chatGptPrompt" | "codexPrompt"
   return [
     promptHeader(),
     "",
-    `種類: ${card.kind}`,
-    `優先度: ${card.priority}`,
+    `分類案: ${card.kind}`,
+    `優先度案: ${card.priority}`,
     `元のひとこと: ${card.sourceText}`,
-    `なぜ使えそうか: ${card.reason}`,
-    `次の一手: ${card.nextStep}`,
+    `なぜ候補にしたか: ${card.reason}`,
+    `次の一手案: ${card.nextStep}`,
     "",
     "お願い:",
-    "- 今やるべきか、寝かせるべきかを判断してください",
+    "- 今やるべきか、寝かせるべきか、無視してよいかを判断してください",
     "- 家族を責めない言い方にしてください",
     "- 必要ならCodexに渡す短い指示に変換してください"
   ].join("\n");
@@ -259,13 +283,14 @@ function buildChatGptPrompt(card: Omit<AmmoCard, "chatGptPrompt" | "codexPrompt"
 
 function buildCodexPrompt(card: Omit<AmmoCard, "chatGptPrompt" | "codexPrompt" | "familyQuestion">): string {
   return [
-    "v0.xxとして以下の改善を実装してください。ただしホーム画面はうるさくしないでください。",
+    "v0.xxとして以下の候補を実装するか検討し、必要なら最小限で実装してください。ただしホーム画面はうるさくしないでください。",
     "",
     `改善候補: ${card.title}`,
-    `種類: ${card.kind}`,
+    `分類案: ${card.kind}`,
+    `優先度案: ${card.priority}`,
     `元のひとこと: ${card.sourceText}`,
-    `なぜ使えそうか: ${card.reason}`,
-    `次の一手: ${card.nextStep}`,
+    `なぜ候補にしたか: ${card.reason}`,
+    `次の一手案: ${card.nextStep}`,
     "",
     "守ること:",
     "- ホーム画面に分類、共有、AI分析、Codex文言を出さない",
@@ -285,16 +310,20 @@ function buildFamilyQuestion(card: Omit<AmmoCard, "chatGptPrompt" | "codexPrompt
 }
 
 function toCard(entry: Entry, kind: AmmoKind, status?: AmmoStatus): AmmoCard {
+  const sourceEntryIds = [entry.id];
+  const title = titleFor(kind, entry.text);
+  const ammoKey = createAmmoKey(kind, title, sourceEntryIds);
   const base = {
-    id: `ammo_${entry.id}`,
-    sourceEntryIds: [entry.id],
-    title: titleFor(kind, entry.text),
+    id: ammoKey,
+    ammoKey,
+    sourceEntryIds,
+    title,
     kind,
     sourceText: entry.text,
     reason: reasonFor(kind, entry.text),
     nextStep: nextStepFor(kind),
     priority: priorityFor(entry, kind),
-    status: status ?? "unused"
+    status: status ?? "candidate"
   };
 
   return {
@@ -347,10 +376,15 @@ export function buildArsenalView(
         return undefined;
       }
 
+      const card = toCard(entry, kind);
+
       return {
         index,
         score: scoreFor(entry, kind),
-        card: toCard(entry, kind, statuses[`ammo_${entry.id}`])
+        card: {
+          ...card,
+          status: statuses[card.ammoKey] ?? statuses[`ammo_${entry.id}`] ?? card.status
+        }
       };
     })
     .filter((item): item is { index: number; score: number; card: AmmoCard } => Boolean(item))

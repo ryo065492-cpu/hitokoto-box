@@ -1,5 +1,13 @@
 # DECISIONS
 
+## v0.12 弾薬庫状態の共通保存
+
+- `localStorage` だけでは PC / iPhone / iPad ごとに弾カードの状態が分かれるため、ammo status は Supabase の `ammo_item_statuses` へ移行する。
+- ブラウザから Supabase に直接触らず、`/api/arsenal/statuses` を通して server-side service role で保存する。
+- `ammo_key` は、分類案、正規化したタイトル、元Entry IDから作る安定キーとして扱う。
+- `Entry.text` は引き続き最重要データで、ammo status はあとから作り直せる派生データとして扱う。
+- Supabase保存に失敗した場合だけ、端末内 `localStorage` を一時fallbackとして使う。
+
 ## v0.8 入力体験と確認画面の判断
 
 - アプリ内の「声で入れる」ボタンは、無料運用と迷いの少なさを優先してホーム画面から外す。

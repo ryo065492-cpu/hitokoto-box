@@ -19,7 +19,7 @@ function ArsenalContent() {
     try {
       setView(await getArsenalView());
     } catch {
-      setError("弾薬庫を読み込めませんでした。");
+      setError("運用司令室を読み込めませんでした。");
     } finally {
       setIsLoading(false);
     }
